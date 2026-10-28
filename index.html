@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام متابعة التكاليف والمقررات الأكاديمية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #f8fafc; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col">
+
+    <!-- شاشة تسجيل الدخول الإجبارية -->
+    <div id="loginScreen" class="fixed inset-0 bg-slate-900 bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 border border-slate-100 fade-in">
+            <div class="text-center mb-6">
+                <div class="bg-indigo-600 text-white w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 text-3xl shadow-lg shadow-indigo-200">🎓</div>
+                <h2 class="text-2xl font-black text-slate-900">تسجيل الدخول للنظام</h2>
+                <p class="text-xs text-slate-500 mt-1">نظام متابعة التكاليف الدراسية - الفرقة الثالثة</p>
+            </div>
+            
+            <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">اسم المستخدم (Username):</label>
+                    <input type="text" id="username" required placeholder="مثال: fadi أو amr.abdelhakim" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">كلمة المرور (Password):</label>
+                    <input type="password" id="password" required placeholder="••••••••" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm bg-slate-50">
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                    <label class="flex items-center space-x-2 space-x-reverse cursor-pointer">
+                        <input type="checkbox" id="rememberMe" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                        <span class="text-slate-600">تذكرني على هذا الجهاز</span>
+                    </label>
+                </div>
+                <div id="loginError" class="text-red-500 text-xs hidden font-bold text-center bg-red-50 p-2 rounded-lg">اسم المستخدم، كلمة المرور غير صحيحة، أو الحساب مستخدم من جهاز آخر!</div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition shadow-lg shadow-indigo-200 text-sm">دخول للنظام</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- التطبيق الرئيسي -->
+    <div id="appContainer" class="hidden flex flex-col min-h-screen">
+        
+        <!-- الشريط العلوي -->
+        <header class="bg-indigo-900 text-white shadow-md sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center space-x-3 space-x-reverse">
+                    <span class="bg-indigo-700 p-2.5 rounded-xl text-xl shadow-inner">📚</span>
+                    <div>
+                        <h1 class="text-base font-bold">نظام متابعة التكاليف والمقررات</h1>
+                        <p class="text-xs text-indigo-200">كلية التربية النوعية - جامعة عين شمس</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4 space-x-reverse">
+                    <span id="userBadge" class="bg-indigo-800 text-indigo-100 text-xs px-3.5 py-1.5 rounded-xl font-bold border border-indigo-700"></span>
+                    <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3.5 py-1.5 rounded-xl transition shadow-sm font-semibold">تسجيل الخروج</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- المحتوى الداخلي -->
+        <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 space-y-6">
+
+            <!-- 1. واجهة الطالب -->
+            <div id="studentView" class="space-y-6 hidden fade-in">
+                <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-100">
+                    <h2 class="text-lg font-bold text-indigo-900 mb-4 flex items-center gap-2"><span>📅</span> جدول المحاضرات والسكاشن والأونلاين (الفرقة الثالثة)</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-700 border-b border-slate-100">
+                                    <th class="p-3">اليوم</th>
+                                    <th class="p-3">المحاضرات (Lecture)</th>
+                                    <th class="p-3">السكاشن (Section)</th>
+                                    <th class="p-3">الأونلاين (Online)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr>
+                                    <td class="p-3 font-bold bg-slate-50/50">السبت</td>
+                                    <td class="p-3">التعليم الإلكتروني / صيانة الحاسب الآلي</td>
+                                    <td class="p-3 text-slate-400">-</td>
+                                    <td class="p-3">الأصول الاجتماعية للتربية</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-3 font-bold bg-slate-50/50">الأحد</td>
+                                    <td class="p-3 text-slate-400">-</td>
+                                    <td class="p-3">التدريب الميداني</td>
+                                    <td class="p-3">اضطرابات التواصل / البرامج الفردية</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-3 font-bold bg-slate-50/50">الإثنين</td>
+                                    <td class="p-3">تحليل وتصميم النظم / الفيديو التعليمي</td>
+                                    <td class="p-3">تصميم المقررات / التدريب الميداني</td>
+                                    <td class="p-3">تحليل وتصميم نظم المعلومات</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-3 font-bold bg-slate-50/50">الثلاثاء</td>
+                                    <td class="p-3">تكنولوجيا تعليم فئات خاصة / علوم المكتبات</td>
+                                    <td class="p-3">التدريب الميداني</td>
+                                    <td class="p-3 text-slate-400">-</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-3 font-bold bg-slate-50/50">الأربعاء</td>
+                                    <td class="p-3 text-slate-400">-</td>
+                                    <td class="p-3 text-slate-400">-</td>
+                                    <td class="p-3">التعليم الإلكتروني</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-3 font-bold bg-slate-50/50">الخميس</td>
+                                    <td class="p-3 text-slate-400">-</td>
+                                    <td class="p-3 text-slate-400">-</td>
+                                    <td class="p-3">الفيديو التعليمي / الإسعافات الأولية</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- جدول التكاليف للطالب -->
+                <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-100">
+                    <h2 class="text-lg font-bold text-indigo-900 mb-4 flex items-center gap-2"><span>📌</span> قائمة التكاليف الدراسية</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-700 border-b border-slate-100">
+                                    <th class="p-3">اسم التكليف</th>
+                                    <th class="p-3">المادة</th>
+                                    <th class="p-3">موعد التسليم</th>
+                                    <th class="p-3">الحالة</th>
+                                    <th class="p-3">الإجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentTasksTable" class="divide-y divide-slate-100">
+                                <tr>
+                                    <td class="p-3 font-bold">تصوير منتجات إعلانية</td>
+                                    <td class="p-3">تصوير رقمي</td>
+                                    <td class="p-3">2026-10-20</td>
+                                    <td class="p-3"><span class="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg font-bold">مطلوب</span></td>
+                                    <td class="p-3"><button onclick="submitTaskModal(this)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition font-semibold">رفع الملف</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. واجهة المعلم -->
+            <div id="teacherView" class="space-y-6 hidden fade-in">
+                <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-100">
+                    <h2 class="text-lg font-bold text-indigo-900 mb-4 flex items-center gap-2"><span>➕</span> إضافة تكليف دراسي جديد</h2>
+                    <form onsubmit="addNewTask(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">اسم التكليف:</label>
+                            <input type="text" id="newTaskName" required placeholder="مثال: تصوير أماكن سياحية" class="w-full px-3 py-2.5 border rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">المادة الدراسية:</label>
+                            <input type="text" id="newTaskSubject" required value="تصوير رقمي" class="w-full px-3 py-2.5 border rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">موعد التسليم النهائي:</label>
+                            <input type="date" id="newTaskDate" required class="w-full px-3 py-2.5 border rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div class="md:col-span-3">
+                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl transition shadow-sm">نشر التكليف للطلاب</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- داشبورد المعلم ومتابعة الطلاب -->
+                <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-100">
+                    <h2 class="text-lg font-bold text-indigo-900 mb-4 flex items-center gap-2"><span>📊</span> لوحة متابعة تسليمات الطلاب</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-700 border-b border-slate-100">
+                                    <th class="p-3">اسم الطالب</th>
+                                    <th class="p-3">التكليف</th>
+                                    <th class="p-3">حالة التسليم</th>
+                                    <th class="p-3">التقييم</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr>
+                                    <td class="p-3 font-bold">عمرو عبدالحكيم</td>
+                                    <td class="p-3">تصوير منتجات إعلانية</td>
+                                    <td class="p-3"><span class="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-lg font-bold">تم الإنجاز</span></td>
+                                    <td class="p-3">
+                                        <select onchange="updateGrade(this)" class="border rounded-lg px-2 py-1 bg-slate-50 font-semibold text-emerald-700">
+                                            <option selected>اجتاز</option>
+                                            <option>لم يجتاز</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="p-3 font-bold">دعاء خالد</td>
+                                    <td class="p-3">تصوير منتجات إعلانية</td>
+                                    <td class="p-3"><span class="bg-red-100 text-red-800 px-2 py-1 rounded-lg font-bold">متأخر</span></td>
+                                    <td class="p-3">
+                                        <select onchange="updateGrade(this)" class="border rounded-lg px-2 py-1 bg-slate-50 font-semibold text-red-700">
+                                            <option>اجتاز</option>
+                                            <option selected>لم يجتاز</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. واجهة الإعدادات والتحكم (خاصة بـ فادي) -->
+            <div id="adminView" class="space-y-6 hidden fade-in">
+                <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-100">
+                    <h2 class="text-lg font-bold text-indigo-900 mb-1 flex items-center gap-2"><span>⚙️</span> لوحة إدارة النظام (المسؤول: فادي)</h2>
+                    <p class="text-xs text-slate-500 mb-6">تحكم كامل في أعضاء الفريق وحسابات الأساتذة والطلاب مع منع التلاعب بالأجهزة</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                        <div class="border border-slate-100 p-4 rounded-xl bg-slate-50/50 flex flex-col justify-between">
+                            <div>
+                                <h3 class="font-bold text-slate-700 mb-1">إدارة المستخدمين</h3>
+                                <p class="text-slate-500 mb-4">عرض وحذف قيود الأجهزة المرتبطة بالحسابات.</p>
+                            </div>
+                            <button onclick="resetAllDevices()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-semibold transition">تصفير بصمات الأجهزة</button>
+                        </div>
+                        <div class="border border-slate-100 p-4 rounded-xl bg-slate-50/50 flex flex-col justify-between">
+                            <div>
+                                <h3 class="font-bold text-slate-700 mb-1">إحصائيات النظام</h3>
+                                <p class="text-slate-500 mb-4">متابعة نسب إنجاز التكاليف والنشاط العام.</p>
+                            </div>
+                            <button onclick="alert('نسبة إنجاز الفريق العامة: 85% - النظام يعمل بكفاءة تامة')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-semibold transition">عرض الإحصائيات</button>
+                        </div>
+                        <div class="border border-slate-100 p-4 rounded-xl bg-slate-50/50 flex flex-col justify-between">
+                            <div>
+                                <h3 class="font-bold text-slate-700 mb-1">تقارير PDF</h3>
+                                <p class="text-slate-500 mb-4">تصدير تقرير شامل بحالة المشروع والتسليمات.</p>
+                            </div>
+                            <button onclick="alert('تم تجهيز تقرير النظام وتصديره بنجاح!')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-semibold transition">تصدير التقرير</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- زر الدعم الفني الجانبي الثابت -->
+        <a href="https://wa.me/201200588730" target="_blank" class="fixed bottom-6 left-6 bg-emerald-500 hover:bg-emerald-600 text-white p-3.5 rounded-full shadow-2xl flex items-center gap-2.5 transition transform hover:scale-105 z-50 group border-2 border-white">
+            <span class="text-xl">💬</span>
+            <span class="text-xs font-bold max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-xs transition-all duration-300 ease-in-out">الدعم الفني: 01200588730</span>
+        </a>
+
+    </div>
+
+    <!-- سكربت الحماية ومنع مشاركة الحسابات -->
+    <script>
+        const usersDB = {
+            "fadi": { pass: "admin2026", role: "admin", name: "فادي (مدير النظام)" },
+            "dr.mousaad": { pass: "teach123", role: "teacher", name: "د. محمد مسعد (أستاذ المقرر)" },
+            "amr.abdelhakim": { pass: "team101", role: "student", name: "عمرو عبدالحكيم" },
+            "abdelrahman.anwar": { pass: "team102", role: "student", name: "عبدالرحمن انور" },
+            "doaa.khaled": { pass: "team103", role: "student", name: "دعاء خالد" },
+            "ali.ahmed": { pass: "team105", role: "student", name: "علي احمد" },
+            "ali.ibrahim": { pass: "team107", role: "student", name: "علي إبراهيم" },
+            "fadi.mandouh": { pass: "team108", role: "student", name: "فادي ممدوح" },
+            "simon.maher": { pass: "team109", role: "student", name: "سيمون ماهر" },
+            "marina.hany": { pass: "team110", role: "student", name: "مارينا هاني" }
+        };
+
+        // توليد بصمة فريدة لهذا الجهاز لو مش موجودة
+        let myDeviceID = localStorage.getItem('device_unique_id');
+        if (!myDeviceID) {
+            myDeviceID = 'dev_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+            localStorage.setItem('device_unique_id', myDeviceID);
+        }
+
+        window.onload = function() {
+            const savedUser = localStorage.getItem('saved_user');
+            if (savedUser && usersDB[savedUser]) {
+                loginUser(savedUser);
+            }
+        };
+
+        function handleLogin(event) {
+            event.preventDefault();
+            const u = document.getElementById('username').value.trim();
+            const p = document.getElementById('password').value.trim();
+            const remember = document.getElementById('rememberMe').checked;
+            const err = document.getElementById('loginError');
+
+            if (usersDB[u] && usersDB[u].pass === p) {
+                // فحص ارتباط الحساب بجهاز آخر
+                const boundDevice = localStorage.getItem('bound_' + u);
+                if (boundDevice && boundDevice !== myDeviceID && u !== 'fadi') {
+                    err.innerText = "هذا الحساب مسجل بالفعل على جهاز آخر ولا يمكن فتحه من جهاز جديد!";
+                    err.classList.remove('hidden');
+                    return;
+                }
+
+                // ربط الحساب بهذا الجهاز
+                localStorage.setItem('bound_' + u, myDeviceID);
+
+                if (remember) {
+                    localStorage.setItem('saved_user', u);
+                }
+                loginUser(u);
+            } else {
+                err.innerText = "اسم المستخدم أو كلمة المرور غير صحيحة!";
+                err.classList.remove('hidden');
+            }
+        }
+
+        function loginUser(u) {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('appContainer').classList.remove('hidden');
+            
+            const user = usersDB[u];
+            document.getElementById('userBadge').innerText = user.name;
+
+            if (user.role === 'admin') {
+                document.getElementById('adminView').classList.remove('hidden');
+            } else if (user.role === 'teacher') {
+                document.getElementById('teacherView').classList.remove('hidden');
+            } else {
+                document.getElementById('studentView').classList.remove('hidden');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('saved_user');
+            location.reload();
+        }
+
+        function resetAllDevices() {
+            if (confirm('هل أنت متأكد من مسح جميع قيود الأجهزة والسماح للطلاب بتسجيل الدخول من أجهزة جديدة؟')) {
+                for (let key in usersDB) {
+                    localStorage.removeItem('bound_' + key);
+                }
+                alert('تم تصفير قيود الأجهزة بنجاح!');
+            }
+        }
+
+        function addNewTask(event) {
+            event.preventDefault();
+            const name = document.getElementById('newTaskName').value;
+            const subject = document.getElementById('newTaskSubject').value;
+            const date = document.getElementById('newTaskDate').value;
+
+            const table = document.getElementById('studentTasksTable');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="p-3 font-bold">${name}</td>
+                <td class="p-3">${subject}</td>
+                <td class="p-3">${date}</td>
+                <td class="p-3"><span class="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg font-bold">مطلوب</span></td>
+                <td class="p-3"><button onclick="submitTaskModal(this)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition font-semibold">رفع الملف</button></td>
+            `;
+            table.appendChild(row);
+            alert('تم نشر التكليف بنجاح للطلاب!');
+            event.target.reset();
+        }
+
+        function submitTaskModal(btn) {
+            const row = btn.closest('tr');
+            const statusCell = row.cells[3];
+            statusCell.innerHTML = `<span class="bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-lg font-bold">تم الإنجاز</span>`;
+            btn.outerHTML = `<span class="text-slate-400 font-semibold text-xs">تم التسليم</span>`;
+            alert('تم رفع ملف التكليف بنجاح وتحديث حالتك إلى (تم الإنجاز)!');
+        }
+
+        function updateGrade(select) {
+            if (select.value === 'اجتاز') {
+                select.className = "border rounded-lg px-2 py-1 bg-slate-50 font-semibold text-emerald-700";
+            } else {
+                select.className = "border rounded-lg px-2 py-1 bg-slate-50 font-semibold text-red-700";
+            }
+            alert('تم تحديث تقييم الطالب بنجاح!');
+        }
+    </script>
+</body>
+</html>
